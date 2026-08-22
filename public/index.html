@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İzlə & Qazan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="loginSection" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+        <h1 class="text-2xl font-bold text-center text-emerald-400 mb-4">Reklam İzlə & Qazan</h1>
+        <p class="text-slate-400 text-sm text-center mb-6">Daxil olun və izlədikcə balansınızı artırın.</p>
+        <input type="text" id="usernameInput" placeholder="İstifadəçi adınızı yazın" class="w-full p-3 bg-slate-700 border border-slate-600 rounded-xl mb-4 focus:outline-none focus:border-emerald-400">
+        <button onclick="login()" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold p-3 rounded-xl transition">Daxil Ol</button>
+    </div>
+
+    <div id="dashboardSection" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 hidden">
+        <div class="flex justify-between items-center border-b border-slate-700 pb-4 mb-6">
+            <div>
+                <p class="text-xs text-slate-400">Xoş gəldiniz,</p>
+                <p id="displayUsername" class="font-bold text-lg text-emerald-400"></p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-slate-400">Balansınız</p>
+                <p class="font-bold text-xl text-yellow-400"><span id="userBalance">0.00</span> AZN</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-700/50 p-4 rounded-xl border border-slate-600 text-center mb-6">
+            <div id="adBox" class="h-32 bg-slate-800 rounded-lg flex items-center justify-center border border-dashed border-slate-600 text-slate-500">
+                [ Reklam Şəbəkəsi Konteytneri ]
+            </div>
+            <button id="watchBtn" onclick="watchAd()" class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold p-3 rounded-xl mt-4 transition">
+                Reklamı İzlə (+0.05 AZN)
+            </button>
+        </div>
+
+        <div class="border-t border-slate-700 pt-4">
+            <h3 class="font-bold mb-3 text-sm text-slate-300">Bank Kartına Çıxarış (Min. 5 AZN)</h3>
+            <input type="text" id="cardNumber" placeholder="Kart Nömrəsi (16 rəqəm)" class="w-full p-2.5 text-sm bg-slate-700 border border-slate-600 rounded-lg mb-2 focus:outline-none">
+            <input type="number" id="withdrawAmount" placeholder="Məbləğ (AZN)" class="w-full p-2.5 text-sm bg-slate-700 border border-slate-600 rounded-lg mb-3 focus:outline-none">
+            <button onclick="requestWithdraw()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold p-2.5 text-sm rounded-lg border border-slate-500 transition">
+                Çıxarış Sorğusu Göndər
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        async function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if(!username) return alert('İstifadəçi adı vacibdir!');
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                currentUser = data.user;
+                document.getElementById('displayUsername').innerText = currentUser.username;
+                document.getElementById('userBalance').innerText = parseFloat(currentUser.balance).toFixed(2);
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+            }
+        }
+
+        async function watchAd() {
+            const watchBtn = document.getElementById('watchBtn');
+            watchBtn.disabled = true;
+            watchBtn.innerText = "Gözləyin (10 san)...";
+
+            const res = await fetch('/api/watch-ad', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: currentUser.username })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                document.getElementById('userBalance').innerText = data.balance;
+                alert('Balansınıza +0.05 AZN əlavə olundu!');
+            } else {
+                alert(data.error);
+            }
+
+            setTimeout(() => {
+                watchBtn.disabled = false;
+                watchBtn.innerText = "Reklamı İzlə (+0.05 AZN)";
+            }, 10000);
+        }
+
+        async function requestWithdraw() {
+            const cardNumber = document.getElementById('cardNumber').value.trim();
+            const amount = document.getElementById('withdrawAmount').value;
+
+            const res = await fetch('/api/withdraw', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: currentUser.username, cardNumber, amount })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                alert(data.message);
+                document.getElementById('userBalance').innerText = data.newBalance;
+            } else {
+                alert(data.error);
+            }
+        }
+    </script>
+</body>
+</html>
